@@ -50,6 +50,8 @@ Text_size=9;
 // Two layers at 0.2 mm per layer
 TextHeight=0.4;
 FontName = "Harmony OS Sans SC"; // [Anton, Archive Black, Asap, Bangers, Black Han Sans, Bubblegum Sans, Bungee, Change One, Chewy, Concert One, Fruktur, Gochi Hand, Griffy, Harmony OS Sans SC, Inter, Item, Jockey One, Jungle Fever, Kanit, Kavoon, Komikazoom, Lato, Lilita One, Lora, Luckiest Guy, Merriweather Sans, Mitr, Montserrat, Nanum Pen Script, Noto Sans SC, Nunito, Open Sans, Oswald, Palanquin Dark, Passion One, Patrick Hand, Paytone One, Permanent Marker, Playfair Display, Plus Jakarta Sans, Poetesen, Poppins, Rakkas, Raleway, Roboto, Rowdies, Rubik, Russo One, Saira Stencil One, Shrikhand, Source Sans 3, Squada One, Titan One, Ubuntu Sans, Work Sans]
+// Font weight / style — affects stroke thickness of the text
+FontStyle = "Regular"; // [Regular, Bold, Italic, Bold Italic]
 // If not engraved, text is shown in red — pause print here to change filament color
 Engraved=false;
 // Show text on lid (set false to hide text when using a pattern)
@@ -57,13 +59,19 @@ ShowText=true;
 
 /* [Lid Pattern] */
 // Decoration pattern on the lid surface
-LidPattern=0; // [0:None, 1:Grid, 2:Horizontal Lines, 3:Vertical Lines]
+LidPattern=0; // [0:None, 1:Grid, 2:Horizontal Lines, 3:Vertical Lines, 4:Honeycomb]
 // Spacing between pattern lines (mm)
 PatternSpacing=10;
 // Pattern line width (mm)
 PatternLineWidth=0.8;
 // Pattern line height (mm)
 PatternHeight=0.4;
+
+/* [Honeycomb Settings] */
+// Hexagon cell circumradius (center to vertex) in mm
+HoneycombSize=5;
+// Wall thickness between honeycomb cells in mm
+HoneycombWall=1.2;
 
 /* [Advanced Settings] */
 RoundingOnTopOnly=true;
@@ -152,6 +160,31 @@ module partitions(){
     }
 }
 
+module lid_honeycomb(){
+    r    = HoneycombSize;
+    w    = HoneycombWall;
+    // effective tiling radius keeps gap between flat sides = w
+    er   = r + w / sqrt(3);
+    dx   = er * sqrt(3);   // horizontal center-to-center
+    dy   = er * 1.5;       // vertical center-to-center
+    usable_l = inner_L - wall;
+    usable_w = inner_W;
+    base_z   = wall - PatternHeight/2 + 0.01;
+    cols_n   = ceil(usable_l / dx) + 2;
+    rows_n   = ceil(usable_w / dy) + 2;
+    for(col = [-cols_n : cols_n]){
+        offset_y = (abs(col) % 2 == 1) ? dy/2 : 0;
+        for(row = [-rows_n : rows_n]){
+            x = col * dx;
+            y = row * dy + offset_y;
+            if(abs(x) <= usable_l/2 + r && abs(y) <= usable_w/2 + r)
+                translate([x, y, base_z])
+                rotate([0, 0, 30])
+                cylinder(r=r, h=PatternHeight, center=true, $fn=6);
+        }
+    }
+}
+
 module lid_pattern(){
     usable_l = inner_L - wall;   // stay inside the cap boundary
     usable_w = inner_W;
@@ -171,6 +204,8 @@ module lid_pattern(){
             cuboid([PatternLineWidth, usable_w, PatternHeight]);
         }
     }
+    // Honeycomb (LidPattern 4)
+    if(LidPattern == 4) lid_honeycomb();
 }
 
 module showtext(){
@@ -178,10 +213,10 @@ module showtext(){
         if(!Engraved){
            color([1,0,0])
            linear_extrude(height=TextHeight, center=true)
-            text(LidText, size=Text_size, font=FontName, halign="center", valign="center");
+            text(LidText, size=Text_size, font=str(FontName, ":style=", FontStyle), halign="center", valign="center");
         }else{
             linear_extrude(height=TextHeight, center=true)
-            text(LidText, size=Text_size, font=FontName, halign="center", valign="center");
+            text(LidText, size=Text_size, font=str(FontName, ":style=", FontStyle), halign="center", valign="center");
         }
 }
 
