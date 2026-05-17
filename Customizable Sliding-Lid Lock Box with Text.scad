@@ -11,7 +11,7 @@ Length=90.5;
 // Side and top wall thickness
 wall=2;
 // Bottom wall thickness (can differ from side wall)
-bottom_wall=2;
+bottom_wall=1;
 
 /* [Compartment Settings] */
 // Number of columns — dividers along the length axis (max 4)
@@ -72,9 +72,9 @@ lockSize=1;
 // Cap undercut; must be less than wall
 capCut=1;
 // Larger value = looser lid fit
-clearance=0.3;
-handleCutSize=7;
-handleCutDeep=1.3;
+clearance=0.4;
+handleCutSize=10;
+handleCutDeep=20;
 
 // ── Derived dimensions ────────────────────────────────────
 inner_L = Length - wall*2;
