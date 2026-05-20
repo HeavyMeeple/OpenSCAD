@@ -139,7 +139,12 @@ module body(){
         // Inner cavity — bottom thickness is exactly bottom_wall
         // cavity center in local coords = bottom_wall/2 (gives bottom at z=bottom_wall absolute)
         translate([0, 0, bottom_wall/2 + 0.01])
-        cuboid([inner_L, inner_W, Height - bottom_wall]);
+        if(BottomRounding > wall){
+            cuboid([inner_L, inner_W, Height - bottom_wall],
+                   rounding=BottomRounding - wall, edges=BOTTOM);
+        } else {
+            cuboid([inner_L, inner_W, Height - bottom_wall]);
+        }
     }
 }
 
