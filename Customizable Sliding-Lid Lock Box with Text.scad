@@ -77,6 +77,8 @@ HoneycombWall=1.2;
 RoundingOnTopOnly=true;
 // Bottom edge rounding radius in mm (0 = sharp corners)
 BottomRounding=5;
+// Inner bottom edge rounding radius in mm (0 = sharp corners)
+InnerBottomRounding=2;
 // Snap bump for a tight close — set 0 for none
 lockSize=1;
 // Cap undercut; must be less than wall
@@ -139,9 +141,9 @@ module body(){
         // Inner cavity — bottom thickness is exactly bottom_wall
         // cavity center in local coords = bottom_wall/2 (gives bottom at z=bottom_wall absolute)
         translate([0, 0, bottom_wall/2 + 0.01])
-        if(BottomRounding > wall){
+        if(InnerBottomRounding > 0){
             cuboid([inner_L, inner_W, Height - bottom_wall],
-                   rounding=BottomRounding - wall, edges=BOTTOM);
+                   rounding=InnerBottomRounding, edges=BOTTOM);
         } else {
             cuboid([inner_L, inner_W, Height - bottom_wall]);
         }
