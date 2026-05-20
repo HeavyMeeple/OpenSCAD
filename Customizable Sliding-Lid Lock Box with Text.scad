@@ -75,6 +75,8 @@ HoneycombWall=1.2;
 
 /* [Advanced Settings] */
 RoundingOnTopOnly=true;
+// Bottom edge rounding radius in mm (0 = sharp corners)
+BottomRounding=5;
 // Snap bump for a tight close — set 0 for none
 lockSize=1;
 // Cap undercut; must be less than wall
@@ -123,7 +125,14 @@ module body(){
     translate([0,0,Height/2])
     difference(){
         if(RoundingOnTopOnly){
-            cuboid([Length,Width,Height], rounding=wall, edges=TOP);
+            if(BottomRounding > 0){
+                intersection(){
+                    cuboid([Length,Width,Height], rounding=wall, edges=TOP);
+                    cuboid([Length,Width,Height], rounding=BottomRounding, edges=BOTTOM);
+                }
+            } else {
+                cuboid([Length,Width,Height], rounding=wall, edges=TOP);
+            }
         } else {
             cuboid([Length,Width,Height], rounding=wall);
         }
