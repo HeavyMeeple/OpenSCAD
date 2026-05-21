@@ -154,32 +154,51 @@ module partitions(){
     pw          = partition_wall;
     partition_h = inner_H * PartitionHeightRatio;
     partition_z = bottom_wall + partition_h / 2;
-    // rounding radius capped at pw/2 so it never exceeds the wall thickness
-    p_r = min(InnerBottomRounding, pw / 2);
+    // Rounding caps: must fit within half the span of each axis
+    p_col = min(InnerBottomRounding, inner_W/2 - 0.01, partition_h/2 - 0.01);
+    p_row = min(InnerBottomRounding, inner_L/2 - 0.01, partition_h/2 - 0.01);
 
     // Column dividers — walls parallel to Y axis, spaced along X (length)
+    // Profile in local XY: local-X→world-(-Z), local-Y→world-Y
+    // So: local-X=0 = box floor, local-X=-partition_h = partition top
     if(Cols > 1){
         col_s = _norm_sizes(Col1,Col2,Col3,Col4, Cols, inner_L, pw);
         for(i = [0 : Cols-2]){
             cx = _div_pos(col_s, pw, -inner_L/2, i);
-            translate([cx, 0, partition_z])
-            if(p_r > 0)
-                cuboid([pw, inner_W, partition_h], rounding=p_r, edges=BOTTOM);
+            translate([cx, 0, bottom_wall])
+            rotate([0, 90, 0])
+            linear_extrude(height=pw, center=true)
+            if(p_col > 0)
+                hull(){
+                    translate([-partition_h, -inner_W/2]) circle(r=0.001, $fn=4);
+                    translate([-partition_h,  inner_W/2]) circle(r=0.001, $fn=4);
+                    translate([-p_col, -inner_W/2 + p_col]) circle(r=p_col, $fn=32);
+                    translate([-p_col,  inner_W/2 - p_col]) circle(r=p_col, $fn=32);
+                }
             else
-                cuboid([pw, inner_W, partition_h]);
+                translate([-partition_h, -inner_W/2]) square([partition_h, inner_W]);
         }
     }
 
     // Row dividers — walls parallel to X axis, spaced along Y (width)
+    // Profile in local XY: local-X→world-X, local-Y→world-Z
+    // So: local-Y=0 = box floor, local-Y=partition_h = partition top
     if(Rows > 1){
         row_s = _norm_sizes(Row1,Row2,Row3,Row4, Rows, inner_W, pw);
         for(i = [0 : Rows-2]){
             cy = _div_pos(row_s, pw, -inner_W/2, i);
-            translate([0, cy, partition_z])
-            if(p_r > 0)
-                cuboid([inner_L, pw, partition_h], rounding=p_r, edges=BOTTOM);
+            translate([0, cy, bottom_wall])
+            rotate([90, 0, 0])
+            linear_extrude(height=pw, center=true)
+            if(p_row > 0)
+                hull(){
+                    translate([-inner_L/2, partition_h]) circle(r=0.001, $fn=4);
+                    translate([ inner_L/2, partition_h]) circle(r=0.001, $fn=4);
+                    translate([-inner_L/2 + p_row, p_row]) circle(r=p_row, $fn=32);
+                    translate([ inner_L/2 - p_row, p_row]) circle(r=p_row, $fn=32);
+                }
             else
-                cuboid([inner_L, pw, partition_h]);
+                translate([-inner_L/2, 0]) square([inner_L, partition_h]);
         }
     }
 }
