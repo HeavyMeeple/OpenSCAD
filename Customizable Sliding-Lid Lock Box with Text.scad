@@ -154,6 +154,8 @@ module partitions(){
     pw          = partition_wall;
     partition_h = inner_H * PartitionHeightRatio;
     partition_z = bottom_wall + partition_h / 2;
+    // rounding radius capped at pw/2 so it never exceeds the wall thickness
+    p_r = min(InnerBottomRounding, pw / 2);
 
     // Column dividers — walls parallel to Y axis, spaced along X (length)
     if(Cols > 1){
@@ -161,7 +163,10 @@ module partitions(){
         for(i = [0 : Cols-2]){
             cx = _div_pos(col_s, pw, -inner_L/2, i);
             translate([cx, 0, partition_z])
-            cuboid([pw, inner_W, partition_h]);
+            if(p_r > 0)
+                cuboid([pw, inner_W, partition_h], rounding=p_r, edges=BOTTOM);
+            else
+                cuboid([pw, inner_W, partition_h]);
         }
     }
 
@@ -171,7 +176,10 @@ module partitions(){
         for(i = [0 : Rows-2]){
             cy = _div_pos(row_s, pw, -inner_W/2, i);
             translate([0, cy, partition_z])
-            cuboid([inner_L, pw, partition_h]);
+            if(p_r > 0)
+                cuboid([inner_L, pw, partition_h], rounding=p_r, edges=BOTTOM);
+            else
+                cuboid([inner_L, pw, partition_h]);
         }
     }
 }
