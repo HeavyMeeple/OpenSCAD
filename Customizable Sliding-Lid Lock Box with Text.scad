@@ -11,7 +11,7 @@ Length=90.5;
 // Side and top wall thickness
 wall=2;
 // Bottom wall thickness (can differ from side wall)
-bottom_wall=2;
+bottom_wall=1;
 
 /* [Compartment Settings] */
 // Number of columns — dividers along the length axis (max 4)
@@ -50,6 +50,8 @@ Text_size=9;
 // Two layers at 0.2 mm per layer
 TextHeight=0.4;
 FontName = "Harmony OS Sans SC"; // [Anton, Archive Black, Asap, Bangers, Black Han Sans, Bubblegum Sans, Bungee, Change One, Chewy, Concert One, Fruktur, Gochi Hand, Griffy, Harmony OS Sans SC, Inter, Item, Jockey One, Jungle Fever, Kanit, Kavoon, Komikazoom, Lato, Lilita One, Lora, Luckiest Guy, Merriweather Sans, Mitr, Montserrat, Nanum Pen Script, Noto Sans SC, Nunito, Open Sans, Oswald, Palanquin Dark, Passion One, Patrick Hand, Paytone One, Permanent Marker, Playfair Display, Plus Jakarta Sans, Poetesen, Poppins, Rakkas, Raleway, Roboto, Rowdies, Rubik, Russo One, Saira Stencil One, Shrikhand, Source Sans 3, Squada One, Titan One, Ubuntu Sans, Work Sans]
+// Font weight / style — affects stroke thickness of the text
+FontStyle = "Regular"; // [Regular, Bold, Italic, Bold Italic]
 // If not engraved, text is shown in red — pause print here to change filament color
 Engraved=false;
 // Show text on lid (set false to hide text when using a pattern)
@@ -57,7 +59,7 @@ ShowText=true;
 
 /* [Lid Pattern] */
 // Decoration pattern on the lid surface
-LidPattern=0; // [0:None, 1:Grid, 2:Horizontal Lines, 3:Vertical Lines]
+LidPattern=0; // [0:None, 1:Grid, 2:Horizontal Lines, 3:Vertical Lines, 4:Honeycomb]
 // Spacing between pattern lines (mm)
 PatternSpacing=10;
 // Pattern line width (mm)
@@ -65,16 +67,26 @@ PatternLineWidth=0.8;
 // Pattern line height (mm)
 PatternHeight=0.4;
 
+/* [Honeycomb Settings] */
+// Hexagon cell circumradius (center to vertex) in mm
+HoneycombSize=5;
+// Wall thickness between honeycomb cells in mm
+HoneycombWall=1.2;
+
 /* [Advanced Settings] */
 RoundingOnTopOnly=true;
+// Bottom edge rounding radius in mm (0 = sharp corners)
+BottomRounding=5;
+// Inner bottom edge rounding radius in mm (0 = sharp corners)
+InnerBottomRounding=2;
 // Snap bump for a tight close — set 0 for none
 lockSize=1;
 // Cap undercut; must be less than wall
 capCut=1;
 // Larger value = looser lid fit
-clearance=0.3;
-handleCutSize=7;
-handleCutDeep=1.3;
+clearance=0.4;
+handleCutSize=10;
+handleCutDeep=20;
 
 // ── Derived dimensions ────────────────────────────────────
 inner_L = Length - wall*2;
@@ -115,14 +127,26 @@ module body(){
     translate([0,0,Height/2])
     difference(){
         if(RoundingOnTopOnly){
-            cuboid([Length,Width,Height], rounding=wall, edges=TOP);
+            if(BottomRounding > 0){
+                intersection(){
+                    cuboid([Length,Width,Height], rounding=wall, edges=TOP);
+                    cuboid([Length,Width,Height], rounding=BottomRounding, edges=BOTTOM);
+                }
+            } else {
+                cuboid([Length,Width,Height], rounding=wall, edges=TOP);
+            }
         } else {
             cuboid([Length,Width,Height], rounding=wall);
         }
         // Inner cavity — bottom thickness is exactly bottom_wall
         // cavity center in local coords = bottom_wall/2 (gives bottom at z=bottom_wall absolute)
         translate([0, 0, bottom_wall/2 + 0.01])
-        cuboid([inner_L, inner_W, Height - bottom_wall]);
+        if(InnerBottomRounding > 0){
+            cuboid([inner_L, inner_W, Height - bottom_wall],
+                   rounding=InnerBottomRounding, edges=BOTTOM);
+        } else {
+            cuboid([inner_L, inner_W, Height - bottom_wall]);
+        }
     }
 }
 
@@ -130,24 +154,76 @@ module partitions(){
     pw          = partition_wall;
     partition_h = inner_H * PartitionHeightRatio;
     partition_z = bottom_wall + partition_h / 2;
+    // Rounding caps: must fit within half the span of each axis
+    p_col = min(InnerBottomRounding, inner_W/2 - 0.01, partition_h/2 - 0.01);
+    p_row = min(InnerBottomRounding, inner_L/2 - 0.01, partition_h/2 - 0.01);
 
     // Column dividers — walls parallel to Y axis, spaced along X (length)
+    // Profile in local XY: local-X→world-(-Z), local-Y→world-Y
+    // So: local-X=0 = box floor, local-X=-partition_h = partition top
     if(Cols > 1){
         col_s = _norm_sizes(Col1,Col2,Col3,Col4, Cols, inner_L, pw);
         for(i = [0 : Cols-2]){
             cx = _div_pos(col_s, pw, -inner_L/2, i);
-            translate([cx, 0, partition_z])
-            cuboid([pw, inner_W, partition_h]);
+            translate([cx, 0, bottom_wall])
+            rotate([0, 90, 0])
+            linear_extrude(height=pw, center=true)
+            if(p_col > 0)
+                hull(){
+                    translate([-partition_h, -inner_W/2]) circle(r=0.001, $fn=4);
+                    translate([-partition_h,  inner_W/2]) circle(r=0.001, $fn=4);
+                    translate([-p_col, -inner_W/2 + p_col]) circle(r=p_col, $fn=32);
+                    translate([-p_col,  inner_W/2 - p_col]) circle(r=p_col, $fn=32);
+                }
+            else
+                translate([-partition_h, -inner_W/2]) square([partition_h, inner_W]);
         }
     }
 
     // Row dividers — walls parallel to X axis, spaced along Y (width)
+    // Profile in local XY: local-X→world-X, local-Y→world-Z
+    // So: local-Y=0 = box floor, local-Y=partition_h = partition top
     if(Rows > 1){
         row_s = _norm_sizes(Row1,Row2,Row3,Row4, Rows, inner_W, pw);
         for(i = [0 : Rows-2]){
             cy = _div_pos(row_s, pw, -inner_W/2, i);
-            translate([0, cy, partition_z])
-            cuboid([inner_L, pw, partition_h]);
+            translate([0, cy, bottom_wall])
+            rotate([90, 0, 0])
+            linear_extrude(height=pw, center=true)
+            if(p_row > 0)
+                hull(){
+                    translate([-inner_L/2, partition_h]) circle(r=0.001, $fn=4);
+                    translate([ inner_L/2, partition_h]) circle(r=0.001, $fn=4);
+                    translate([-inner_L/2 + p_row, p_row]) circle(r=p_row, $fn=32);
+                    translate([ inner_L/2 - p_row, p_row]) circle(r=p_row, $fn=32);
+                }
+            else
+                translate([-inner_L/2, 0]) square([inner_L, partition_h]);
+        }
+    }
+}
+
+module lid_honeycomb(){
+    r    = HoneycombSize;
+    w    = HoneycombWall;
+    // effective tiling radius keeps gap between flat sides = w
+    er   = r + w / sqrt(3);
+    dx   = er * sqrt(3);   // horizontal center-to-center
+    dy   = er * 1.5;       // vertical center-to-center
+    usable_l = inner_L - wall;
+    usable_w = inner_W;
+    base_z   = wall - PatternHeight/2 + 0.01;
+    cols_n   = ceil(usable_l / dx) + 2;
+    rows_n   = ceil(usable_w / dy) + 2;
+    for(col = [-cols_n : cols_n]){
+        offset_y = (abs(col) % 2 == 1) ? dy/2 : 0;
+        for(row = [-rows_n : rows_n]){
+            x = col * dx;
+            y = row * dy + offset_y;
+            if(abs(x) <= usable_l/2 + r && abs(y) <= usable_w/2 + r)
+                translate([x, y, base_z])
+                rotate([0, 0, 30])
+                cylinder(r=r, h=PatternHeight, center=true, $fn=6);
         }
     }
 }
@@ -171,6 +247,8 @@ module lid_pattern(){
             cuboid([PatternLineWidth, usable_w, PatternHeight]);
         }
     }
+    // Honeycomb (LidPattern 4)
+    if(LidPattern == 4) lid_honeycomb();
 }
 
 module showtext(){
@@ -178,10 +256,10 @@ module showtext(){
         if(!Engraved){
            color([1,0,0])
            linear_extrude(height=TextHeight, center=true)
-            text(LidText, size=Text_size, font=FontName, halign="center", valign="center");
+            text(LidText, size=Text_size, font=str(FontName, ":style=", FontStyle), halign="center", valign="center");
         }else{
             linear_extrude(height=TextHeight, center=true)
-            text(LidText, size=Text_size, font=FontName, halign="center", valign="center");
+            text(LidText, size=Text_size, font=str(FontName, ":style=", FontStyle), halign="center", valign="center");
         }
 }
 
